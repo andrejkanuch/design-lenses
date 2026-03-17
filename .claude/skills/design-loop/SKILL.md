@@ -1,302 +1,465 @@
 ---
 name: design-loop
-description: Run the full Compound Design Loop — multi-persona brainstorm + all 19 Impeccable commands through parallel agent teams. Use when you want to take a functional UI from "working" to "production-grade premium."
-argument-hint: "<file-path> [--domain=motorcycle|fitness|finance|medical|ecommerce] [--max-iterations=10]"
+description: Run the Compound Design Loop — orchestrates 8 specialist agents across 4 iterations to take any UI from functional to production-grade. Covers critique, audit, typography, layout, copy, animation, hardening, color, accessibility, and polish. Use when a UI screen needs comprehensive design refinement.
+user-invokable: true
+argument-hint: "<file-path> [--domain=motorcycle|fitness|finance|ecommerce|medical] [--dry-run]"
 ---
 
-# The Compound Design Loop
-
-**Build fast, then refine through specialized lenses.**
-
-Good design isn't one big decision — it's 15 small ones made through different lenses. Each pass takes 5-10 minutes but compounds into a result that feels intentional and premium.
+Orchestrate a comprehensive design review through 8 specialist agents across 4 iterations, transforming functional UI into production-grade design.
 
 ## Prerequisites
 
-This plugin works best with the [Impeccable](https://impeccable.style) plugin installed for the individual command skills. If Impeccable is not installed, the agents will still run — they just won't have access to the Impeccable skill prompts (the agent prompts below are self-contained).
+Before running the design loop, verify these conditions:
 
-## Principles
+1. **File must exist** — the target must be an HTML, JSX, TSX, Vue, or Svelte file that already renders a functional UI. This loop refines design; it does not build features.
+2. **Git working tree must be clean** — all changes to the target file should be committed before starting. Auto-apply edits have no rollback mechanism; git is your safety net. Run `git status` and warn the user if there are uncommitted changes to the target file.
+3. **Works standalone** — this skill is self-contained. If the [Impeccable](https://impeccable.style) plugin is installed, agents gain access to its command skills for deeper analysis, but it is not required.
 
-1. **Separate building from designing.** The feature should already work before this runs.
-2. **Multi-persona brainstorm before code.** 3-4 specialist agents discuss simultaneously.
-3. **One command = one lens.** Each forces you to look through a different filter.
-4. **Subtraction before addition.** Always /distill before /delight.
-5. **Critique sandwich.** Critique → iterate → critique again to verify.
+## Input Validation
 
-## Arguments
+Parse `$ARGUMENTS` and validate:
 
-Parse the arguments from `$ARGUMENTS`:
-- **file-path** (required): The HTML/JSX/TSX file to redesign
-- **--domain** (optional, default: "default"): Domain expert persona preset
-- **--max-iterations** (optional, default: 10): Maximum iteration cap
+1. **File path** (required, first positional argument):
+   - If missing: `"Error: file path required. Usage: /design-loop <file-path> [--domain=motorcycle] [--dry-run]"`
+   - If file does not exist: `"Error: file not found at [PATH]. Check the path and try again."`
+   - If file is not a supported type (html/jsx/tsx/vue/svelte): `"Error: unsupported file type '[EXT]'. Supported: .html, .jsx, .tsx, .vue, .svelte"`
+   - If file is binary: `"Error: [PATH] appears to be a binary file. This skill works on source files only."`
 
-## Step 0: Setup
+2. **--domain flag** (optional, default: "default"):
+   - Valid values: `motorcycle`, `fitness`, `finance`, `ecommerce`, `medical`, `default`
+   - If invalid: `"Error: unknown domain '[VALUE]'. Valid domains: motorcycle, fitness, finance, ecommerce, medical, default"`
+   - Domain descriptions and evaluation criteria are defined in [reference/domain-experts.md](reference/domain-experts.md)
 
-1. If `ralph-loop` plugin is available, activate it:
-   ```
-   /ralph-loop:ralph-loop "finish all Impeccable commands on [FILE]" --max-iterations [MAX] --completion-promise "ALL_COMMANDS_COMPLETE"
-   ```
-2. Create a `design-review-progress.md` file next to the target file with all 19 commands as unchecked checkboxes, grouped by phase.
+3. **--dry-run flag** (optional):
+   - If present, run context gathering and then output what would happen (detected context, agents to spawn, iterations planned) without executing any agents. Then stop.
 
-## Step 1: DIAGNOSE (Iteration 1)
+## Context Gathering (MANDATORY)
 
-Launch **3 parallel agents** using the Agent tool:
+Before spawning any agents, gather five contextual signals. These shape every agent prompt — generic agents produce generic advice. Store the result as DESIGN_CONTEXT and substitute placeholders `[PLATFORM]`, `[THEME]`, `[SCOPE]`, `[CONTEXT]`, `[DOMAIN]` into all agent prompts.
 
-### Agent 1 — Auditor (/critique + /audit)
-```
-You are a senior frontend auditor running /critique and /audit on [FILE].
+1. **PLATFORM** — detect from file imports/framework or ask the user:
+   - `mobile` — React Native, Expo, SwiftUI, Kotlin/Jetpack Compose
+   - `web` — standard HTML/CSS/JS, Next.js, Remix
+   - `responsive` — web with explicit mobile breakpoints
+   - `cross-platform` — React Native Web, Flutter Web, etc.
 
-Perform a comprehensive evaluation:
-CRITIQUE: Visual hierarchy, information density, emotional resonance, state transitions, discoverability, composition balance, typography communication, color purpose.
-AUDIT: WCAG AA contrast ratios, keyboard nav, ARIA labels, focus states, animation performance (GPU-composited?), CSS variable consistency, responsive behavior, browser compatibility.
+2. **THEME** — detect from file content (CSS variables, color scheme media queries) or ask:
+   - `dark-only` — single dark theme
+   - `light-only` — single light theme
+   - `both` — explicit light and dark themes
+   - `system-adaptive` — follows prefers-color-scheme
 
-For each issue: severity (critical/major/minor), exact CSS selector, specific fix code.
-Do NOT edit the file. Output findings only.
-```
+3. **SCOPE** — ask the user:
+   - `component` — single reusable component
+   - `page` — full screen/page
+   - `multi-screen` — flow across multiple screens
+   - `app-shell` — navigation chrome, tab bar, layout skeleton
 
-### Agent 2 — Domain Expert (customized per --domain)
-```
-You are a [DOMAIN DESCRIPTION] who uses this type of app daily. Read [FILE] and evaluate from a REAL USER's perspective.
+4. **CONTEXT** — ask the user about usage environment:
+   - `outdoor-use` — sunlight, glare, variable lighting
+   - `glove-constraints` — thick gloves, reduced precision
+   - `data-heavy` — dense tables, charts, dashboards
+   - `content` — reading-focused, editorial
+   - `conversion` — checkout, signup, onboarding funnel
+   - `none` — no special constraints
 
-Evaluate: [DOMAIN-SPECIFIC CRITERIA — see Domain Presets section below]
+5. **DOMAIN** — from `--domain` flag, or ask the user. Maps to a persona in [reference/domain-experts.md](reference/domain-experts.md).
 
-Be BRUTALLY honest. What would a real user love and what would they complain about? Provide specific design recommendations.
-Do NOT edit the file. Output findings only.
-```
+If `--dry-run` is present, output the gathered context, the 8 agents that would run, the 4 iterations planned, and stop execution.
 
-### Agent 3 — Lead Designer
-```
-You are a lead product designer at a premium app studio. Read [FILE] and evaluate visual design quality.
+## Progress File Creation
 
-Evaluate: visual sophistication (premium or generic?), typography system (hierarchy, pairing, numeric features), color usage (harmony or chaos?), spatial rhythm (consistent grid?), surface treatment (depth or noise?), iconography (professional or placeholder?), state differentiation (distinguishable from blurred screenshot?).
+Create `design-review-progress.md` in the same directory as the target file. This file tracks every iteration, agent output, and applied fix.
 
-What is the SINGLE most impactful improvement? Provide specific CSS for your top 5 recommendations.
-Do NOT edit the file. Output findings only.
-```
-
-**→ After all 3 return:** Synthesize findings. Identify consensus issues (flagged by 2+ agents). Prioritize: safety > accessibility > visual > polish. Apply critical fixes. Update progress tracker. Mark `/critique` and `/audit` complete.
-
-## Step 2: SYSTEMATIZE (Iteration 2)
-
-Launch **4 parallel agents**:
-
-### Agent 4 — /normalize
-```
-You are running /normalize. Read [FILE] and check design system consistency:
-1. CSS variable usage — find ALL hardcoded colors/spacing that should use variables
-2. Spacing grid — check all values align to 4px base grid, flag off-grid values
-3. Border radius tokens — find inline values not using tokens
-4. Color system — find hex colors bypassing CSS variables
-5. Font weight — flag any weights not loaded in the font import
-Output a structured report with current value → recommended value for each.
-Do NOT edit the file.
-```
-
-### Agent 5 — /typeset
-```
-You are running /typeset. Read [FILE] and fix typography:
-1. Type scale — list all font-sizes, check they follow a modular scale
-2. Line heights — headlines tight (1-1.1), body comfortable (1.4-1.6)
-3. Letter spacing — uppercase labels need +0.05-0.15em, display text may need negative
-4. Font weight distribution — meaningful hierarchy or everything bold?
-5. Monospace vs sans — consistent usage for data vs labels?
-6. Readability — flag text under 11px that isn't a label
-Output specific CSS property changes with rationale.
-Do NOT edit the file.
-```
-
-### Agent 6 — /arrange
-```
-You are running /arrange. Read [FILE] and fix layout/spacing:
-1. Vertical rhythm — consistent spacing between major sections?
-2. Horizontal alignment — elements aligned to same edge grid?
-3. Content grouping — Gestalt proximity principle applied?
-4. Overflow — will content fit at target viewport width?
-5. Safe areas — controls clear of system UI/navigation?
-Apply the TOP 10 most impactful layout fixes directly to the file.
-```
-
-### Agent 7 — /clarify
-```
-You are running /clarify. Read [FILE] and improve all UX copy:
-1. Labels — clear and unambiguous? Appropriate abbreviation level?
-2. Button text — action-oriented?
-3. Status indicators — contextually appropriate?
-4. Abbreviation consistency — units consistent throughout?
-5. Voice/tone — matches the product personality?
-For each: current text, recommended text, why, priority.
-Do NOT edit the file.
-```
-
-**→ Synthesize & apply all fixes.** Update progress. Mark 4 commands complete.
-
-## Step 3: ENHANCE + HARDEN (Iteration 3)
-
-Launch **5 parallel agents**:
-
-### Agent 8 — /animate
-```
-You are running /animate. Read [FILE] and identify purposeful motion opportunities:
-State transitions, value changes, entrance animations, button interactions.
-ALL animations MUST be GPU-composited (transform/opacity only).
-Provide exact CSS code. Only add motion that serves a purpose — this is a utility app, not Dribbble.
-Do NOT edit the file.
-```
-
-### Agent 9 — /delight (MAY EDIT)
-```
-You are running /delight. Read [FILE] and add moments of personality and joy.
-Focus on: completion celebrations, anticipation building, satisfying confirmations, ambient life.
-Keep suggestions to 5-7 max. Provide exact CSS/JS code.
-You MAY edit the file directly to add delight features (new animations, celebration effects).
-```
-
-### Agent 10 — /distill
-```
-You are running /distill. Read [FILE] and strip to ESSENCE.
-Identify: elements to remove entirely, visual complexity to simplify, redundant information, decorative noise.
-Be ruthless — what would Dieter Rams remove?
-Output prioritized list of 8-10 simplifications.
-Do NOT edit the file.
-```
-
-### Agent 11 — /harden (MAY EDIT)
-```
-You are running /harden. Read [FILE] and make it RESILIENT.
-Check: accidental destructive actions (confirmation needed?), error states, text overflow, edge case values (empty, very long, 3+ digits), loading states, offline handling.
-You MAY edit the file directly to add safety features (confirmation dialogs, overflow protection, error states).
-```
-
-### Agent 12 — /colorize
-```
-You are running /colorize. Read [FILE] and evaluate color:
-1. Semantic consistency — does each color always mean the same thing?
-2. State conflicts — same color used for different semantic meanings?
-3. Colorblind safety — can red-green colorblind users distinguish states?
-4. Sunlight/high-contrast readability — which colors lose contrast outdoors?
-Provide specific CSS variable adjustments. Max 6 changes.
-Do NOT edit the file.
-```
-
-**→ Synthesize & apply.** Update progress. Mark 5 commands complete.
-
-## Step 4: POLISH + SHIP (Iteration 4)
-
-Launch **5-6 parallel agents**:
-
-### Agent 13 — /adapt
-```
-You are running /adapt. Read [FILE] and ensure cross-device support:
-1. Narrow screens (360px) — overflow?
-2. Wide screens (430px) — gaps?
-3. Safe areas — env(safe-area-inset-*)?
-4. Landscape — lock or support?
-5. Color scheme — force dark/light?
-Output CSS media queries to add. Max 5 changes.
-Do NOT edit the file.
-```
-
-### Agent 14 — /onboard
-```
-You are running /onboard. Read [FILE] and evaluate first-time UX:
-1. Empty/first-time states — what shows with no data?
-2. Feature discoverability — can users find all features?
-3. Label self-explanation — do labels make sense without context?
-Provide 3-5 minimal copy/UI tweaks.
-Do NOT edit the file.
-```
-
-### Agent 15 — /optimize
-```
-You are running /optimize. Read [FILE] and optimize performance:
-1. Font loading — trim unused weights
-2. CSS — replace transition:all with specific properties
-3. Animations — verify GPU-composited only
-4. SVG — simplify paths
-5. Unused CSS — remove dead rules
-Prioritized list of 5-8 optimizations.
-Do NOT edit the file.
-```
-
-### Agent 16 — /polish
-```
-You are running /polish — the FINAL quality pass. Read [FILE]:
-1. Pixel-level alignment
-2. Visual consistency between similar elements
-3. Remaining off-grid spacing values
-4. Animation timing consistency (same easing family?)
-5. Missing :active states on interactive elements
-6. Shadow depth logic
-7. Optical centering of hero elements
-The last 5% that separates good from great.
-Do NOT edit the file.
-```
-
-### Agent 17 — /extract
-```
-You are running /extract. Read [FILE] and catalog design system tokens:
-1. Color tokens — all CSS variables + semantic usage
-2. Typography — type scale, weight distribution, font features
-3. Spacing — grid system, recurring values
-4. Components — reusable patterns (anatomy + variants)
-5. Animations — easing curves, durations, patterns
-6. Surfaces — tier system with opacity/border values
-Output as structured design system specification.
-Do NOT edit the file.
-```
-
-### Agent 18 — /bolder + /overdrive
-```
-You are running /bolder and /overdrive. Read [FILE]:
-BOLDER: Find 3-5 areas that are too safe/timid and suggest targeted amplifications.
-OVERDRIVE: Propose ONE technically impressive CSS/SVG/JS effect that serves the user context (not just decoration).
-Provide exact code for both.
-Do NOT edit the file.
-```
-
-**→ Apply final fixes.** Update progress. Mark all remaining commands complete.
-
-## Step 5: Completion
-
-Update the progress tracker with "COMPLETE" status and design team sign-off.
-
-If Ralph Loop is active, output: `<promise>ALL_COMMANDS_COMPLETE</promise>`
-
-Output a final summary: commands completed, total fixes applied, key improvements by category.
-
+```markdown
+---
+file: [FILE_PATH]
+domain: [DOMAIN]
+platform: [PLATFORM]
+theme: [THEME]
+scope: [SCOPE]
+context: [CONTEXT]
+status: in-progress
+started: [ISO_TIMESTAMP]
 ---
 
-## Domain Expert Presets
+# Design Review Progress
 
-The `--domain` flag customizes Agent 2:
+## Iteration 1 — DIAGNOSE
+- [ ] Agent 1: Design Critic
+- [ ] Agent 2: Domain Expert
 
-### `--domain=motorcycle`
-> You are a motorcyclist with 15 years riding experience. You've used Calimoto, RISER, Ducati Link, BMW Connected Ride. Evaluate: at-speed glanceability (0.3s read time), glove operation (48px+ targets), sunlight readability, vibration blur tolerance, mounting context (RAM mount on handlebars), safety (accidental tap protection), auto-pause, screen lock for rain. Compare to competitor apps.
+## Iteration 2 — FOUNDATIONS
+- [ ] Agent 3: Design System Agent
+- [ ] Agent 4: Copy & Clarity Agent
 
-### `--domain=fitness`
-> You are a runner/cyclist who uses Strava, Nike Run Club, and Wahoo daily. Evaluate: mid-workout readability (bouncing phone), split/pace/HR clarity, GPS accuracy indicators, auto-pause reliability, weather/hydration context, post-workout sharing flow, achievement moments. Compare to Strava's UX.
+## Iteration 3 — ENHANCE
+- [ ] Agent 5: Motion & Delight Agent
+- [ ] Agent 6: Resilience Agent
 
-### `--domain=finance`
-> You are a day trader using Bloomberg Terminal, Robinhood, and TradingView. Evaluate: data density (can I see enough at a glance?), real-time update clarity, color-coded P&L (red/green cultural sensitivity), order confirmation safety, portfolio overview vs detail balance, error-state urgency for failed trades.
+## Iteration 4 — SHIP
+- [ ] Agent 7: Polish & Extract Agent
+- [ ] Agent 8: Bolder/Overdrive Agent
 
-### `--domain=ecommerce`
-> You are a power shopper who uses Amazon, Shopify stores, and ASOS daily. Evaluate: product image dominance, price/discount clarity, add-to-cart friction, trust signals, shipping/return info prominence, checkout flow anxiety reducers, size/variant selection ease.
+## Applied Fixes
+(populated during execution)
 
-### `--domain=medical`
-> You are an ER nurse using Epic and Cerner systems. Evaluate: critical alert hierarchy (life-threatening vs informational), medication dose prominence, patient ID always visible, handoff clarity, color-coded triage levels, error prevention for wrong-patient actions, time-sensitive task urgency.
+## Summary
+(populated on completion)
+```
 
-### `--domain=default`
-> You are a power user of this application who has used it daily for 2 years and has tried every competitor. Evaluate: workflow efficiency, feature discoverability, information hierarchy for your most common tasks, edge cases you've hit, what competitors do better, what would make you recommend this to a friend.
+## Iteration 1 — DIAGNOSE
 
----
+Launch 2 agents in parallel using the Agent tool. Both agents are research-only — they analyze and report but do NOT edit the file.
 
-## Research vs. Edit Agent Rules
+### Agent 1: Design Critic
 
-**Research-only agents** (output findings, you synthesize):
-- /critique, /audit, /normalize, /typeset, /clarify, /animate, /distill, /colorize, /adapt, /onboard, /optimize, /polish, /extract, /bolder, /overdrive
+Spawn with this prompt (substitute all `[PLACEHOLDERS]` from DESIGN_CONTEXT):
 
-**May edit the file directly** (add new features):
-- /arrange (layout restructuring)
-- /delight (celebration animations, JS effects)
-- /harden (safety features, error states, overflow protection)
+```
+You are a senior design director and accessibility auditor reviewing a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage.
 
-This prevents conflicting edits while allowing agents that add genuinely new functionality to operate autonomously.
+Read the file at [FILE_PATH] completely. Evaluate the design across the 10 dimensions defined in the critique framework: visual hierarchy, information density, touch/interaction targets, contrast ratios, emotional resonance, state differentiation, typography quality, color coherence, animation purposefulness, and accessibility compliance.
+
+For each finding, provide:
+- SEVERITY: critical / major / minor
+- ELEMENT: CSS selector or component name identifying the element
+- CURRENT STATE: what the element does now
+- RECOMMENDED FIX: specific code change (CSS, JSX, or markup)
+- WHY IT MATTERS: user impact in one sentence
+
+Scoring rules:
+- Score honestly. Use 1-2 for genuine weaknesses and 4-5 for genuine strengths.
+- Check WCAG AA contrast ratios (4.5:1 for normal text, 3:1 for large text and UI components).
+- Mentally walk through keyboard navigation order and screen reader announcement flow.
+- Evaluate all states: default, hover, pressed, focused, disabled, loading, error, success, empty.
+- End with 2-3 things the design does well — calibrate your credibility.
+
+DO: Evaluate as a holistic experience. Reference specific elements by name or position. Prioritize by user impact.
+DO NOT: Give everything 3/5. Skip accessibility. Ignore empty/error/loading states. Praise without specifics. Suggest vague improvements like "make it pop."
+
+Do NOT edit the file. Output findings only.
+```
+
+The 10 evaluation dimensions and their scoring anchors are defined in [reference/critique-framework.md](reference/critique-framework.md). The accessibility requirements are defined in [reference/accessibility-checklist.md](reference/accessibility-checklist.md).
+
+### Agent 2: Domain Expert
+
+Spawn with this prompt (substitute all `[PLACEHOLDERS]` from DESIGN_CONTEXT). Select the domain persona description and evaluation criteria from [reference/domain-experts.md](reference/domain-experts.md) based on the `[DOMAIN]` value:
+
+```
+You are a [DOMAIN_PERSONA_DESCRIPTION — full background paragraph from domain-experts.md].
+
+You are reviewing a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage.
+
+Read the file at [FILE_PATH] completely. Evaluate from a REAL USER's perspective using these domain-specific criteria:
+[INSERT the numbered evaluation criteria list from the matching domain in domain-experts.md]
+
+For each finding, provide:
+- SEVERITY: critical / major / minor
+- ELEMENT: CSS selector or component name
+- CURRENT STATE: what you see now
+- RECOMMENDED FIX: specific code change
+- WHY IT MATTERS: from the domain user's perspective
+
+Use first person — stay fully in character. ("As a rider, I'd struggle with..." or "In my 14-hour trading sessions...")
+
+DO: Compare to competitors listed in the domain reference. Think about real-world usage conditions (sunlight, gloves, vibration, stress, bouncing, oxygen-depletion). Be brutally honest about dealbreakers vs nice-to-haves.
+DO NOT: Give generic UX advice that ignores the physical context. Forget muscle memory from competitor apps. Ignore edge cases specific to the domain. Assume the user is sitting at a desk in good lighting.
+
+End with a "switch likelihood" rating: Would Switch / Maybe / Would Not Switch — and explain why.
+
+Do NOT edit the file. Output findings only.
+```
+
+### Synthesis Protocol (Iteration 1)
+
+After BOTH agents return, synthesize before making any edits:
+
+1. **Read both outputs completely** — do not skim.
+2. **Categorize each finding**:
+   - CONSENSUS (both agents flagged it) — apply immediately, highest priority.
+   - SINGLE-CRITICAL (one agent, critical severity) — apply.
+   - SINGLE-MAJOR (one agent, major severity) — apply with a note in the progress file.
+   - SINGLE-MINOR (one agent, minor severity) — defer to later iteration or skip.
+   - CONTRADICTION (agents disagree) — prefer Design Critic for visual/accessibility issues, Domain Expert for usability/workflow issues.
+3. **Apply fixes** using the Edit tool. Group related fixes into logical batches.
+4. **Update progress file** — check off both agents, log applied fixes with brief descriptions.
+5. **Proceed to Iteration 2.**
+
+## Iteration 2 — FOUNDATIONS
+
+Launch 2 agents in parallel. Agent 3 MAY edit the file directly. Agent 4 is research-only.
+
+### Agent 3: Design System Agent
+
+Spawn with this prompt:
+
+```
+You are a design system engineer enforcing consistency on a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage.
+
+Read the file at [FILE_PATH] completely. Audit and fix these subsystems:
+
+1. CSS VARIABLE CONSISTENCY — find every hardcoded color, spacing, or radius value that should reference a design token or CSS variable. List each with current value and recommended variable.
+2. SPACING GRID — verify all margin, padding, and gap values align to a 4px base grid. Flag every off-grid value with the nearest grid-aligned alternative.
+3. TYPE SCALE — verify font sizes follow a modular ratio. Check line-heights (1.1-1.3 for headings, 1.4-1.6 for body). Check letter-spacing (negative for large display text, positive for uppercase labels).
+4. LAYOUT RHYTHM — verify consistent vertical spacing between sections. Check horizontal alignment to a shared edge grid. Verify Gestalt proximity grouping.
+5. OVERFLOW — check content at realistic widths. Will text truncate correctly? Do flex/grid items have min-width: 0? Are safe areas respected (env(safe-area-inset-*))?
+
+Apply the TOP 10 most impactful fixes directly to the file using the Edit tool. For each fix applied, note what changed and why.
+
+DO: Be precise ("card uses 14px padding, system specifies 16px"). Check every element including dividers, badges, and captions. Verify dark mode token mappings if applicable.
+DO NOT: Invent design system rules that don't exist in the file. Ignore intentional deviations without noting them.
+```
+
+Agent role details and evaluation checklist are in [reference/agent-roles.md](reference/agent-roles.md) (Agent 3: Design System Agent).
+
+### Agent 4: Copy & Clarity Agent
+
+Spawn with this prompt:
+
+```
+You are a UX writer and first-time-user advocate reviewing a [PLATFORM] [THEME] [SCOPE] interface in the [DOMAIN] domain, designed for [CONTEXT] usage.
+
+Read the file at [FILE_PATH] completely. Audit every piece of text:
+
+1. LABEL CLARITY — are labels unambiguous? Would a first-time user understand each one? Are abbreviations consistent (don't mix "km" and "kilometers")?
+2. BUTTON TEXT — is every button label an action verb describing the outcome ("Save Draft" not "Submit")? Are destructive actions clearly labeled ("Delete Ride" not "Remove")?
+3. EMPTY STATES — do empty states explain what will appear and how to get there?
+4. ERROR MESSAGES — are they specific, human-readable, and actionable?
+5. STATUS INDICATORS — are status labels contextually appropriate for the domain?
+6. FIRST-TIME COMPREHENSION — would a new user understand what to do within 5 seconds?
+7. TONE CONSISTENCY — does the voice match across all copy (formal, casual, technical)?
+
+For each finding, provide:
+- LOCATION: element or component name
+- CURRENT COPY: exact text as it appears
+- ISSUE: what's wrong (confusing / unclear / inconsistent / jargon)
+- SUGGESTED REVISION: improved text
+- PRIORITY: high / medium / low
+
+DO: Read every string including alt text, aria-labels, placeholders, and tooltips. Test with the "new user test." Consider localization (string length, cultural assumptions).
+DO NOT: Rewrite to your personal style — match the product's established voice. Use clever copy for error states — clarity beats personality.
+
+Do NOT edit the file. Output findings only.
+```
+
+Agent role details are in [reference/agent-roles.md](reference/agent-roles.md) (Agent 4: Copy & Clarity Agent).
+
+### Synthesis Protocol (Iteration 2)
+
+Same protocol as Iteration 1:
+
+1. Read both outputs completely.
+2. Categorize: CONSENSUS → apply. SINGLE-CRITICAL → apply. SINGLE-MAJOR → apply with note. SINGLE-MINOR → defer. CONTRADICTION → prefer Design System Agent for visual consistency, Copy & Clarity Agent for text and comprehension.
+3. Apply fixes using the Edit tool.
+4. Update progress file.
+5. Proceed to Iteration 3.
+
+## Iteration 3 — ENHANCE
+
+Launch 2 agents in parallel. Both agents MAY edit the file directly — they add new functionality (animations, safety features) rather than modifying existing design decisions.
+
+### Agent 5: Motion & Delight Agent
+
+Spawn with this prompt:
+
+```
+You are a motion designer and color specialist working on a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage in the [DOMAIN] domain.
+
+Read the file at [FILE_PATH] completely. Evaluate and enhance three areas:
+
+MOTION:
+- Identify purposeful animation opportunities: state transitions, value changes, entrance sequences, button feedback, page transitions.
+- ALL animations MUST be GPU-composited (transform and opacity only — never animate width, height, top, left, margin, or padding).
+- Specify duration (under 300ms for micro-interactions, under 500ms for page transitions), easing curve (cubic-bezier values), and reduced-motion fallback for each.
+- Pair enter and exit animations (if it slides in, it slides out).
+- Sequence choreography logically: parent before children, top-to-bottom.
+
+DELIGHT:
+- Identify 3-5 moments that deserve celebration or personality: completion, achievement, anticipation, satisfying confirmation, ambient life.
+- Keep delight appropriate to domain — a medical app needs "trustworthy calm," not "playful bounce."
+- Each delight moment must have a reduced-motion fallback.
+
+COLOR:
+- Check semantic consistency — does each color always mean the same thing across the file?
+- Check colorblind safety — can deuteranopia/protanopia users distinguish all meaningful color pairs?
+- Check sunlight readability — which elements lose contrast in bright outdoor conditions?
+- Limit changes to 6 maximum color adjustments.
+
+You MAY edit the file directly to add animation CSS, delight JS/CSS, and color fixes. For each edit, note what you added and why.
+
+DO: Think about animation as communication, not decoration. Use staggered delays to create rhythm. Design for the emotional moment.
+DO NOT: Add animation to everything — stillness creates contrast. Use bounce/elastic easing on data-heavy interfaces. Create animations that block user input.
+```
+
+Agent role details are in [reference/agent-roles.md](reference/agent-roles.md) (Agent 5: Motion & Delight Agent).
+
+### Agent 6: Resilience Agent
+
+Spawn with this prompt:
+
+```
+You are a resilience engineer working on a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage in the [DOMAIN] domain.
+
+Read the file at [FILE_PATH] completely. Work in this order — distill BEFORE hardening:
+
+DISTILL (subtract first):
+- Identify elements that could be removed without losing core functionality.
+- Flag visual complexity that could be simplified.
+- Find redundant information or decorative noise.
+- List 5-8 simplifications, ranked by impact.
+
+HARDEN (then protect what remains):
+- TEXT OVERFLOW: what happens when text is 3x longer than expected? Add truncation, line-clamp, or word-break as needed.
+- EDGE CASE VALUES: what happens with 0 items, 1 item, 1000+ items, empty strings, very long numbers?
+- CONFIRMATION DIALOGS: are destructive actions (delete, discard, cancel) protected with confirmation?
+- ERROR STATES: does every data-dependent element have an error fallback?
+- LOADING STATES: does every async element show a loading indicator?
+
+ADAPT (make it fit everywhere):
+- Test at 360px width (smallest common phone) — does anything overflow or become unusable?
+- Test at 430px width (largest common phone) — are there awkward gaps?
+- Check safe area insets — does content clear the notch, dynamic island, home indicator?
+- Check landscape — does the layout handle rotation or should it lock to portrait?
+
+You MAY edit the file directly to add safety features: overflow protection, confirmation dialogs, error states, responsive fixes. For each edit, note what you added and why.
+
+DO: Test extremes first — the happy path is already handled. Consider interruptions (phone call mid-flow, notification during recording). Simplify so edge cases become normal cases.
+DO NOT: Add complexity to handle edge cases — reduce complexity. Assume consistent network. Ignore platform conventions (iOS safe areas, Android nav bar).
+```
+
+Agent role details are in [reference/agent-roles.md](reference/agent-roles.md) (Agent 6: Resilience Agent).
+
+### Synthesis Protocol (Iteration 3)
+
+Both agents in this iteration may edit the file. After both return:
+
+1. Read both outputs and review all edits they made.
+2. Check for conflicts — if both agents edited the same element, resolve in favor of the change that improves safety/resilience (Resilience Agent wins ties on structural changes, Motion Agent wins on animation/color).
+3. Apply any remaining research findings using the Edit tool.
+4. Update progress file.
+5. Proceed to Iteration 4.
+
+## Iteration 4 — SHIP
+
+Launch 2 agents in parallel. Both are research-only — they output findings and code suggestions but do NOT edit the file. You apply the final round of changes.
+
+### Agent 7: Polish & Extract Agent
+
+Spawn with this prompt:
+
+```
+You are a senior UI engineer doing the final quality pass on a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage in the [DOMAIN] domain.
+
+Read the file at [FILE_PATH] completely. Evaluate three areas:
+
+POLISH:
+- Pixel alignment — are all elements on whole-pixel boundaries (no half-pixel blur)?
+- Visual consistency — do similar elements (cards, buttons, list items) use identical styling?
+- Spacing precision — any remaining off-grid values?
+- Animation timing — are easing curves from the same family? Are durations consistent for similar interactions?
+- Interactive feedback — does every interactive element have a :active/:pressed state?
+- Shadow depth — does the elevation system follow a logical hierarchy?
+- Optical centering — are hero elements optically centered (not just mathematically)?
+
+OPTIMIZE:
+- Font loading — are unused font weights imported?
+- CSS specificity — are there transition:all declarations that should target specific properties?
+- Unused CSS — are there rules that no longer apply to any element?
+- Animation performance — are all animations GPU-composited?
+
+EXTRACT:
+- Catalog all design tokens that emerged during this review: colors, spacing, typography, animation, surfaces.
+- Identify patterns that appear 3+ times and should be extracted as reusable components.
+- Output a structured design system specification.
+
+For each finding, provide the exact code to change and why.
+
+Do NOT edit the file. Output findings only.
+```
+
+Agent role details are in [reference/agent-roles.md](reference/agent-roles.md) (Agent 7: Polish & Extract Agent).
+
+### Agent 8: Bolder/Overdrive Agent
+
+Spawn with this prompt:
+
+```
+You are a creative director who believes most interfaces are too timid. You are reviewing a [PLATFORM] [THEME] [SCOPE] interface designed for [CONTEXT] usage in the [DOMAIN] domain.
+
+Read the file at [FILE_PATH] completely. Evaluate two areas:
+
+BOLDER:
+- Identify 3-5 areas where the design is playing it safe — where amplification would create more impact without sacrificing usability.
+- For each: describe the current state, the bolder alternative, and why it improves the experience.
+- Consider: type scale (could headings be more dramatic?), color contrast (is the palette too muted?), negative space (could whitespace be used more dramatically?), transitions (are state changes too subtle to notice?).
+- "Bold" means different things per domain — for medical it means "unmissable clarity," for fitness it means "triumphant energy," for finance it means "confident precision."
+
+OVERDRIVE:
+- Propose ONE technically impressive CSS/SVG/JS effect that genuinely serves the user context.
+- It must be functional, not decorative — it should make information clearer, interaction more satisfying, or the experience more memorable.
+- Include: implementation code, performance considerations, graceful fallback for low-end devices, and reduced-motion alternative.
+- Examples: parallax depth on a route map, morphing number transitions on financial data, physics-based pull-to-refresh, gradient mesh backgrounds that respond to data.
+
+For each proposal, provide exact code to implement.
+
+DO: Push boundaries while respecting domain context. Propose one signature moment per screen, not noise everywhere. Provide fallbacks for every effect.
+DO NOT: Confuse bold with busy. Propose effects that compromise accessibility. Add complexity that slows down task completion.
+
+Do NOT edit the file. Output code suggestions only.
+```
+
+Agent role details are in [reference/agent-roles.md](reference/agent-roles.md) (Agent 8: Bolder / Overdrive Agent).
+
+### Final Synthesis
+
+After both agents return:
+
+1. Read both outputs completely.
+2. From Agent 7 (Polish & Extract): apply all polish fixes. Apply optimization fixes. Save the design system extraction to the progress file.
+3. From Agent 8 (Bolder/Overdrive): evaluate each proposal against the DESIGN_CONTEXT. Apply bolder changes that genuinely improve the experience. Apply the overdrive effect only if it serves the user context and has a proper fallback. Skip proposals that add complexity without clear user benefit.
+4. Update progress file with all final changes.
+
+## NEVER
+
+These anti-patterns will break the loop or produce bad results:
+
+- **NEVER spawn more than 2 agents simultaneously** — Claude Code has practical concurrency limits; 2 agents is reliable, 3+ will timeout or produce truncated output.
+- **NEVER allow research-only agents to edit the file** — when multiple agents edit concurrently, conflicting writes corrupt the file. Only agents explicitly marked "MAY edit" should use the Edit tool.
+- **NEVER skip the synthesis step** — applying one agent's fixes without reading the other agent's output produces inconsistency. Both outputs inform the merge.
+- **NEVER run delight before distill** — adding personality to cluttered UI makes it worse. Subtract first, then add character to what remains.
+- **NEVER run on uncommitted changes** — auto-apply edits have no undo. Git is the only rollback mechanism. Verify clean working tree in Prerequisites.
+- **NEVER use generic agent prompts** — always substitute DESIGN_CONTEXT placeholders. An agent without context gives irrelevant advice that wastes an iteration.
+- **NEVER force the completion promise if agents failed** — if an agent timed out, returned empty, or the context was exhausted, report partial progress honestly. Do not claim completion.
+
+## Agent Failure Recovery
+
+Handle failures gracefully without retrying in the same iteration:
+
+- **TIMEOUT** — the agent did not return within the expected window. Log the timeout in the progress file, skip the agent, and continue with whatever output is available from the parallel agent. Do not retry.
+- **EMPTY OUTPUT** — the agent returned but produced no findings. Treat as "no issues found in this agent's scope." Log it and continue.
+- **CONTEXT EXHAUSTION** — the conversation is approaching context limits. Skip remaining iterations, apply any pending fixes from completed agents, and output the progress file with status `partial`. Do not start new iterations.
+- **NEVER retry a failed agent in the same iteration** — retries risk producing duplicate edits or conflicting changes. Move forward with available data.
+
+## Completion
+
+When all 4 iterations are complete (or as many as could be completed before failure):
+
+1. **Update the progress file**:
+   - Set frontmatter `status:` to `complete` (or `partial` if iterations were skipped).
+   - Add a `completed:` timestamp.
+   - Fill in the Summary section.
+
+2. **Output a final summary** to the user:
+   - Number of agents that ran successfully (out of 8).
+   - Total fixes applied, grouped by category (accessibility, typography, layout, color, motion, resilience, polish, copy).
+   - Top 3-5 most impactful improvements made.
+   - Any skipped agents or deferred findings.
+
+3. **If Ralph Loop is active**, output the completion promise:
+   ```
+   <promise>ALL_COMMANDS_COMPLETE</promise>
+   ```
+
+4. Close with: "Good design isn't one big decision — it's 15 small ones made through different lenses."

@@ -1,10 +1,10 @@
 {
   "name": "compound-design-loop",
   "description": "The Compound Design Loop — multi-persona brainstorm + Impeccable command loop for production-grade UI redesign. Spawns parallel specialist agents (UI designer, domain expert, motion designer, accessibility auditor) to review designs through 19 lenses.",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Andrej Kanuch",
-    "email": "andrej@motovault.app"
+    "email": "kanuchandrej@gmail.com"
   },
   "homepage": "https://github.com/andrejkanuch/compound-design-loop",
   "repository": "https://github.com/andrejkanuch/compound-design-loop",

@@ -2,9 +2,14 @@
 
 **Build fast, then refine through specialized lenses.**
 
-A Claude Code plugin that runs all 19 [Impeccable](https://impeccable.style) design commands through parallel agent teams — each playing a specialist role (UI designer, domain expert, motion designer, accessibility auditor).
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Good design isn't one big decision — it's 15 small ones made through different lenses.
+## What It Does
+
+Compound Design Loop is a Claude Code plugin that orchestrates multi-persona design reviews. It spawns 8 specialist agents across 4 structured iterations (DIAGNOSE, FOUNDATIONS, ENHANCE, SHIP), covering all 19 [Impeccable](https://impeccable.style) design commands. Hand it any functional UI file and it takes it from "working" to "production-grade" -- critique, typography, layout, motion, accessibility, resilience, and polish in a single run.
+
+Good design is not one big decision. It is 15 small ones made through different lenses.
 
 ## Install
 
@@ -18,81 +23,209 @@ Or test locally:
 claude --plugin-dir /path/to/compound-design-loop
 ```
 
+## Quick Start
+
+```bash
+/compound-design-loop:design-loop src/dashboard.tsx --domain=finance
+```
+
+Here is what happens when you run it:
+
+1. **Context gathering** -- the plugin asks you about platform (mobile/web), theme (dark/light/both), scope (component/page), and usage context (data-heavy, outdoor, etc.). These shape every agent prompt so advice is specific, not generic.
+
+2. **Iteration 1: DIAGNOSE** -- a Design Critic and a Domain Expert agent spawn in parallel. The critic evaluates visual hierarchy, contrast, states, and accessibility. The domain expert reviews through the lens of a real user in your domain (e.g., a day trader for finance). Both report findings without editing files.
+
+3. **Synthesis** -- the orchestrator reads both reports, categorizes findings by consensus and severity, and applies fixes to your file using the Edit tool. Progress is logged to `design-review-progress.md`.
+
+4. **Iterations 2-4** repeat the pattern with different specialist pairs (design system + copy, motion + resilience, polish + boldness), each building on the previous iteration's improvements.
+
+5. **Final summary** -- total fixes applied, grouped by category, with the top 5 most impactful improvements highlighted.
+
+A full loop typically takes 5-10 minutes depending on file size and complexity.
+
 ## Commands
 
-### `/compound-design-loop:design-loop <file> [--domain=X]`
+### `/compound-design-loop:design-loop <file> [--domain=X] [--dry-run]`
 
-The full loop. Runs all 19 Impeccable commands in 4 iterations through 18 parallel agents:
+The full loop. 8 agents, 4 iterations, auto-applied fixes between each round.
 
-```
-Iteration 1: DIAGNOSE    → /critique, /audit + domain expert + lead designer
-Iteration 2: SYSTEMATIZE → /normalize, /typeset, /arrange, /clarify
-Iteration 3: ENHANCE     → /animate, /delight, /distill, /harden, /colorize
-Iteration 4: POLISH      → /adapt, /onboard, /optimize, /polish, /extract, /bolder, /overdrive
-```
+| Iteration | Name | Agents | What They Cover |
+|-----------|------|--------|-----------------|
+| 1 | **DIAGNOSE** | Design Critic + Domain Expert | Visual hierarchy, accessibility audit, contrast ratios, domain-specific usability, competitor comparison |
+| 2 | **FOUNDATIONS** | Design System + Copy & Clarity | Spacing grid, type scale, color tokens, layout rhythm, label clarity, empty states, error messages, tone |
+| 3 | **ENHANCE** | Motion & Delight + Resilience | Purposeful animations, celebration moments, color safety, text overflow, edge cases, responsive adaptation |
+| 4 | **SHIP** | Polish & Extract + Bolder/Overdrive | Pixel alignment, performance optimization, design token extraction, bold amplification, signature effects |
+
+**Flags:**
+- `--domain=X` -- sets the domain expert persona (see [Domain Presets](#domain-presets))
+- `--dry-run` -- gathers context and outputs the plan without executing any agents
+
+**Supported file types:** `.html`, `.jsx`, `.tsx`, `.vue`, `.svelte`
 
 ### `/compound-design-loop:design-brainstorm <file> [--domain=X]`
 
-Quick 3-agent brainstorm without the full loop. Use for early-stage feedback.
+Quick 3-agent brainstorm without the full loop. Spawns a Design Critic, Domain Expert, and a generalist UX reviewer in parallel. No file editing -- returns prioritized findings for you to act on manually. Use this for early-stage feedback before committing to a full loop.
 
 ### `/compound-design-loop:design-status`
 
-Check progress of a running design loop.
-
-## Domain Presets
-
-The `--domain` flag customizes the domain expert agent:
-
-| Domain | Expert Persona |
-|--------|---------------|
-| `motorcycle` | 15-year rider, Calimoto/RISER user. Glanceability, glove targets, sunlight, vibration. |
-| `fitness` | Daily Strava user. Mid-workout readability, GPS accuracy, splits/pace. |
-| `finance` | Day trader. Data density, real-time updates, P&L color coding. |
-| `ecommerce` | Power shopper. Product images, price clarity, checkout friction. |
-| `medical` | ER nurse. Alert hierarchy, medication safety, patient ID prominence. |
-| `default` | Power user of the app's domain. |
+Check progress of a running design loop. Reads the `design-review-progress.md` file created by design-loop and reports which iterations have completed, which agents have run, and what fixes have been applied so far.
 
 ## How It Works
 
-```
-Build (functional) → Brainstorm (team) → Command Loop → Ship
+### The 4 Iterations
 
-                                            ↓
-                                ┌─ /critique (identify problems)
-                                ├─ /audit (accessibility + perf)
-                                ├─ /normalize (design system)
-                                ├─ /typeset (typography)
-                                ├─ /arrange (layout)
-                                ├─ /clarify (UX copy)
-                                ├─ /animate (motion)
-                                ├─ /delight (personality)
-                                ├─ /distill (strip excess)
-                                ├─ /harden (edge cases)
-                                ├─ /colorize (color strategy)
-                                ├─ /adapt (responsive)
-                                ├─ /onboard (first-time UX)
-                                ├─ /optimize (performance)
-                                ├─ /polish (final 5%)
-                                ├─ /extract (design system spec)
-                                ├─ /bolder (amplify)
-                                ├─ /overdrive (wow effect)
-                                └─ /critique (verify) → done
 ```
+Iteration 1: DIAGNOSE     --> Design Critic + Domain Expert
+                              (research-only: analyze and report)
+                                        |
+                              [Synthesis: categorize + apply fixes]
+                                        |
+Iteration 2: FOUNDATIONS   --> Design System + Copy & Clarity
+                              (system agent edits, copy agent reports)
+                                        |
+                              [Synthesis: resolve + apply fixes]
+                                        |
+Iteration 3: ENHANCE      --> Motion & Delight + Resilience
+                              (both may edit: add animations + safety)
+                                        |
+                              [Synthesis: resolve conflicts + apply]
+                                        |
+Iteration 4: SHIP         --> Polish & Extract + Bolder/Overdrive
+                              (research-only: final recommendations)
+                                        |
+                              [Final synthesis: apply polish + bold]
+                                        |
+                              DONE --> Summary + Progress File
+```
+
+### Context Gathering
+
+Before any agents run, the loop gathers five signals that parameterize every agent prompt. Generic agents produce generic advice -- context makes the difference.
+
+| Signal | Options | How It Is Determined |
+|--------|---------|---------------------|
+| **Platform** | `mobile`, `web`, `responsive`, `cross-platform` | Auto-detected from imports (React Native, Expo, Next.js, etc.) or asked |
+| **Theme** | `dark-only`, `light-only`, `both`, `system-adaptive` | Auto-detected from CSS variables / color scheme queries or asked |
+| **Scope** | `component`, `page`, `multi-screen`, `app-shell` | Asked |
+| **Context** | `outdoor-use`, `glove-constraints`, `data-heavy`, `content`, `conversion`, `none` | Asked |
+| **Domain** | From `--domain` flag or asked | Maps to a persona in domain-experts.md |
+
+### Auto-Apply Between Iterations
+
+After each pair of agents completes, the orchestrator runs a synthesis protocol:
+
+1. **Read both outputs completely** -- no skimming.
+2. **Categorize findings**: CONSENSUS (both flagged it, highest priority), SINGLE-CRITICAL (one agent, apply immediately), SINGLE-MAJOR (apply with note), SINGLE-MINOR (defer or skip), CONTRADICTION (domain-specific rules break ties).
+3. **Apply fixes** in logical batches using the Edit tool.
+4. **Update the progress file** with what changed and why.
+5. **Proceed** to the next iteration, where agents read the improved file.
+
+This means each iteration builds on real improvements, not just theoretical suggestions.
+
+## Domain Presets
+
+The `--domain` flag customizes the Domain Expert agent with a specialized persona, evaluation criteria, and competitor awareness.
+
+| Domain | Expert Persona | Key Evaluation Focus |
+|--------|---------------|---------------------|
+| `motorcycle` | 15-year rider, Calimoto/RISER power user | Glanceability at speed, glove-friendly tap targets (min 48px), sunlight contrast, vibration tolerance |
+| `fitness` | Daily Strava user, marathon runner | Mid-workout readability, GPS accuracy display, splits/pace formatting, sweaty-finger interaction |
+| `finance` | Day trader, 14-hour session veteran | Data density, real-time update handling, P&L color coding (green/red), order confirmation safety |
+| `ecommerce` | Power shopper, deal hunter | Product image quality, price clarity, checkout friction reduction, trust signals, cart persistence |
+| `medical` | ER nurse, high-stress clinical environment | Alert hierarchy (red/yellow/green), medication dosage safety, patient ID prominence, one-hand operation |
+| `default` | Power user of the app's domain | Workflow efficiency, feature discovery, keyboard shortcuts, edge case handling |
+
+Each domain preset includes competitor comparisons, environmental constraints, and a "switch likelihood" rating at the end of the review.
+
+## Architecture
+
+### File Structure
+
+```
+compound-design-loop/
+|-- .claude-plugin/
+|   |-- plugin.json                              (12 lines)   Plugin metadata and version
+|   |-- marketplace.json                         (26 lines)   Marketplace listing
+|-- .claude/
+|   |-- skills/
+|       |-- design-loop/
+|       |   |-- SKILL.md                        (465 lines)   Main orchestration skill
+|       |   |-- reference/
+|       |       |-- agent-roles.md              (287 lines)   8 agent definitions with checklists
+|       |       |-- domain-experts.md           (270 lines)   6 domain personas and criteria
+|       |       |-- critique-framework.md       (182 lines)   10 evaluation dimensions
+|       |       |-- accessibility-checklist.md  (141 lines)   WCAG AA requirements
+|       |-- design-brainstorm/
+|       |   |-- SKILL.md                        (204 lines)   Quick 3-agent brainstorm skill
+|       |-- design-status/
+|           |-- SKILL.md                        (136 lines)   Progress tracking skill
+|-- CLAUDE.md                                    (41 lines)   Plugin development guidelines
+|-- CHANGELOG.md                                 (34 lines)   Version history
+|-- LICENSE                                      (21 lines)   MIT License
+|-- README.md                                                 This file
+```
+
+### The 8 Agents
+
+| # | Agent | Impeccable Commands | Iteration | Edits File? |
+|---|-------|-------------------|-----------|-------------|
+| 1 | Design Critic | `/critique`, `/audit` | 1 - DIAGNOSE | No (research-only) |
+| 2 | Domain Expert | Domain-specific persona | 1 - DIAGNOSE | No (research-only) |
+| 3 | Design System Agent | `/normalize`, `/typeset`, `/arrange` | 2 - FOUNDATIONS | Yes (top 10 fixes) |
+| 4 | Copy & Clarity Agent | `/clarify`, `/onboard` | 2 - FOUNDATIONS | No (research-only) |
+| 5 | Motion & Delight Agent | `/animate`, `/delight`, `/colorize` | 3 - ENHANCE | Yes (animations + color) |
+| 6 | Resilience Agent | `/harden`, `/distill`, `/adapt` | 3 - ENHANCE | Yes (safety + responsive) |
+| 7 | Polish & Extract Agent | `/polish`, `/optimize`, `/extract` | 4 - SHIP | No (research-only) |
+| 8 | Bolder/Overdrive Agent | `/bolder`, `/overdrive` | 4 - SHIP | No (research-only) |
+
+Agents marked "research-only" analyze and report findings. The orchestrator applies their recommendations during synthesis. Agents marked "Yes" may edit the file directly during their run. This prevents write conflicts -- at most 2 agents edit concurrently, and they operate on different concerns (motion vs. resilience).
 
 ## Principles
 
-1. **Separate building from designing.** Feature works first, then redesign.
-2. **Multi-persona brainstorm.** One person can't hold all perspectives.
-3. **One command = one lens.** Opposing forces balance each other.
-4. **Subtraction before addition.** /distill before /delight.
-5. **Critique sandwich.** Critique → iterate → critique to verify.
+1. **Separate building from designing.** Get the feature working first, then hand it to the design loop for refinement. Building and designing use different thinking modes.
 
-## Works With
+2. **Multi-persona brainstorm.** One person cannot hold all perspectives simultaneously. A motion designer sees opportunities an accessibility auditor would miss, and vice versa. Eight specialists find more than one generalist.
 
-- [Impeccable](https://impeccable.style) — design vocabulary plugin (recommended)
-- [Ralph Loop](https://github.com/nichochar/ralph-loop) — persistent iteration loop (optional)
-- [Compound Engineering](https://github.com/compound-engineering/compound-engineering) — engineering workflow (optional)
+3. **One command = one lens.** Each Impeccable command evaluates through a single concern. Opposing forces (/delight vs /distill, /bolder vs /harden) naturally balance each other when run in sequence.
+
+4. **Subtraction before addition.** The Resilience Agent runs /distill before /harden. The loop runs DIAGNOSE before ENHANCE. Remove what does not serve the user before adding new elements.
+
+5. **Critique sandwich.** The loop starts with critique (Iteration 1) and ends with polish (Iteration 4). Early critique identifies problems. Late polish verifies they were solved. The middle iterations do the actual work.
+
+## Dependencies
+
+- **Required**: Claude Code with agent tool support
+- **Recommended**: [Impeccable](https://impeccable.style) plugin -- enhances agents with deeper design vocabulary and the full 19-command toolkit. The loop works standalone; agents have self-contained prompts, but Impeccable adds richer evaluation depth.
+- **Optional**: [Ralph Loop](https://github.com/nichochar/ralph-loop) -- persistent iteration loop for running multiple design passes across a session.
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Agent timeout | Reduce the file size or target a single component. Ensure a stable connection. Large files (3000+ lines) may exceed agent context. |
+| Context exhaustion mid-loop | The file may be too large. Review a single component instead of a full page. The loop will set status to `partial` and preserve completed work. |
+| Impeccable plugin not installed | The plugin works standalone. All agent prompts are self-contained. Impeccable enhances depth but is not required. |
+| "No active design loop found" from design-status | Run `/compound-design-loop:design-loop` first. The status command reads `design-review-progress.md`, which is created by the loop. |
+| Stale progress file from a previous run | Delete `design-review-progress.md` in the target file's directory and start a fresh loop. |
+| Agents giving generic advice | Check that context gathering completed. If you skipped the questions, agents run without platform/theme/scope context and produce less relevant findings. |
+| File corrupted after loop | Run `git diff` to review changes and `git checkout -- <file>` to revert. This is why the loop requires a clean git working tree before starting. |
+
+## Contributing
+
+Contributions are welcome. Here is how to extend the plugin:
+
+- **Adding a domain**: Create a new section in `.claude/skills/design-loop/reference/domain-experts.md` following the existing format (persona description, 10 evaluation criteria, competitor list, environmental constraints).
+
+- **Modifying an agent**: Edit the agent's prompt in `.claude/skills/design-loop/SKILL.md` and update its role definition in `.claude/skills/design-loop/reference/agent-roles.md`. Keep the prompt structure consistent (mission, checklist, output format, DO/DON'T).
+
+- **Testing locally**: Run `claude --plugin-dir ./` from the repository root, then invoke `/compound-design-loop:design-brainstorm test.html` to verify your changes with a quick brainstorm before testing the full loop.
+
+- **Adding a reference file**: Place it in `.claude/skills/design-loop/reference/` and reference it from the agent prompts in `SKILL.md`.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
-MIT
+MIT -- see [LICENSE](LICENSE).
