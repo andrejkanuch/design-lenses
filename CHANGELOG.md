@@ -2,6 +2,18 @@
 
 All notable changes to the Compound Design Loop plugin.
 
+## [1.1.0] - 2026-03-22
+
+### Added
+- `--iterations=N` flag: run only first N iterations (1-4) for quick feedback or context-constrained sessions
+- `--resume` flag: continue a previous run from where it left off by reading the progress file
+- `--no-apply` flag: run all agents but output findings as a report instead of editing the file
+- Multi-file support: pass multiple files or a directory for sequential processing with shared context
+- Cross-file design token consistency: agents on subsequent files receive tokens established by earlier files
+- File-size warnings: warns at 300+ lines, strongly recommends splitting at 800+
+- `examples/` directory with sample motorcycle dashboard and completed progress file
+- Viral footer on progress files with install command and closing quote
+
 ## [1.0.0] - 2026-03-22
 
 First public release.

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ride Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #111; color: #fff; }
+
+    .header {
+      padding: 20px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; }
+    .header .avatar { width: 32px; height: 32px; border-radius: 50%; background: #333; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 0 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .stat-card .label { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 6px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; }
+    .stat-card .unit { font-size: 13px; color: #666; }
+    .stat-card .change { font-size: 11px; color: #4ade80; margin-top: 4px; }
+    .stat-card .change.negative { color: #f87171; }
+
+    .ride-list {
+      padding: 0 16px;
+    }
+    .ride-list h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .ride-item {
+      background: #1a1a1a;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ride-item .route { font-size: 15px; font-weight: 500; }
+    .ride-item .meta { font-size: 12px; color: #888; margin-top: 3px; }
+    .ride-item .distance { font-size: 18px; font-weight: 600; }
+    .ride-item .distance .unit { font-size: 12px; color: #666; }
+
+    .btn-record {
+      position: fixed;
+      bottom: 34px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 16px 40px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .empty-state { display: none; text-align: center; padding: 40px; color: #666; font-size: 14px; }
+
+    .tab-bar {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: #111;
+      border-top: 1px solid #222;
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 20px;
+    }
+    .tab-bar button {
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+    }
+    .tab-bar button.active { color: #fff; }
+    .tab-bar button .icon { font-size: 20px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Dashboard</h1>
+    <div class="avatar"></div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total Distance</div>
+      <div class="value">2,847 <span class="unit">km</span></div>
+      <div class="change">+12% this month</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Rides</div>
+      <div class="value">43</div>
+      <div class="change">+3 this week</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Avg Speed</div>
+      <div class="value">67 <span class="unit">km/h</span></div>
+      <div class="change negative">-2% vs last month</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Max Lean</div>
+      <div class="value">38<span class="unit">&deg;</span></div>
+      <div class="change">Personal best!</div>
+    </div>
+  </div>
+
+  <div class="ride-list">
+    <h2>Recent Rides</h2>
+    <div class="ride-item">
+      <div>
+        <div class="route">Mountain Pass Loop</div>
+        <div class="meta">Today &middot; 2h 15m</div>
+      </div>
+      <div class="distance">142 <span class="unit">km</span></div>
+    </div>
+    <div class="ride-item">
+      <div>
+        <div class="route">Coastal Highway</div>
+        <div class="meta">Yesterday &middot; 1h 48m</div>
+      </div>
+      <div class="distance">98 <span class="unit">km</span></div>
+    </div>
+    <div class="ride-item">
+      <div>
+        <div class="route">City Commute</div>
+        <div class="meta">Mar 19 &middot; 35m</div>
+      </div>
+      <div class="distance">18 <span class="unit">km</span></div>
+    </div>
+  </div>
+
+  <button class="btn-record">Record Ride</button>
+
+  <div class="empty-state">
+    <p>No rides yet. Tap Record to start your first ride.</p>
+  </div>
+
+  <nav class="tab-bar">
+    <button class="active"><span class="icon">&#9783;</span>Dashboard</button>
+    <button><span class="icon">&#9872;</span>Routes</button>
+    <button><span class="icon">&#9881;</span>Garage</button>
+    <button><span class="icon">&#9786;</span>Profile</button>
+  </nav>
+</body>
+</html>

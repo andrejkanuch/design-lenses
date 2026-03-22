@@ -2,7 +2,7 @@
 
 **Build fast, then refine through specialized lenses.**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ## What It Does
@@ -45,7 +45,7 @@ A full loop typically takes 5-10 minutes depending on file size and complexity.
 
 ## Commands
 
-### `/compound-design-loop:design-loop <file> [--domain=X] [--dry-run]`
+### `/compound-design-loop:design-loop <file|dir> [flags]`
 
 The full loop. 8 agents, 4 iterations, auto-applied fixes between each round.
 
@@ -57,10 +57,19 @@ The full loop. 8 agents, 4 iterations, auto-applied fixes between each round.
 | 4 | **SHIP** | Polish & Extract + Bolder/Overdrive | Pixel alignment, performance optimization, design token extraction, bold amplification, signature effects |
 
 **Flags:**
-- `--domain=X` -- sets the domain expert persona (see [Domain Presets](#domain-presets))
-- `--dry-run` -- gathers context and outputs the plan without executing any agents
+| Flag | Description |
+|------|------------|
+| `--domain=X` | Sets the domain expert persona (see [Domain Presets](#domain-presets)) |
+| `--iterations=N` | Run only the first N iterations (1-4). `--iterations=1` runs DIAGNOSE only. |
+| `--resume` | Continue a previous run from where it left off. Reads the progress file and skips completed iterations. |
+| `--no-apply` | Run all agents but output findings as a report instead of editing the file. Review before committing. |
+| `--dry-run` | Gather context and output the plan without executing any agents. |
+
+**Accepts:** single file, multiple files (space-separated), or a directory (globs for supported types).
 
 **Supported file types:** `.html`, `.jsx`, `.tsx`, `.vue`, `.svelte`
+
+**Multi-file mode:** When given multiple files or a directory, runs the loop on each file sequentially with shared context and cross-file design token consistency.
 
 ### `/compound-design-loop:design-brainstorm <file> [--domain=X]`
 
@@ -144,22 +153,25 @@ Each domain preset includes competitor comparisons, environmental constraints, a
 ```
 compound-design-loop/
 |-- .claude-plugin/
-|   |-- plugin.json                              (12 lines)   Plugin metadata and version
-|   |-- marketplace.json                         (26 lines)   Marketplace listing
+|   |-- plugin.json                              Plugin metadata, version, keywords
+|   |-- marketplace.json                         Marketplace listing and tags
 |-- .claude/
 |   |-- skills/
 |       |-- design-loop/
-|       |   |-- SKILL.md                        (465 lines)   Main orchestration skill
+|       |   |-- SKILL.md                         Main orchestration skill
 |       |   |-- reference/
-|       |       |-- agent-roles.md              (287 lines)   8 agent definitions with checklists
-|       |       |-- domain-experts.md           (270 lines)   6 domain personas and criteria
-|       |       |-- critique-framework.md       (182 lines)   10 evaluation dimensions
-|       |       |-- accessibility-checklist.md  (141 lines)   WCAG AA requirements
+|       |       |-- agent-roles.md               8 agent definitions with checklists
+|       |       |-- domain-experts.md            6 domain personas and criteria
+|       |       |-- critique-framework.md        10 evaluation dimensions
+|       |       |-- accessibility-checklist.md   WCAG AA requirements
 |       |-- design-brainstorm/
-|       |   |-- SKILL.md                        (204 lines)   Quick 3-agent brainstorm skill
+|       |   |-- SKILL.md                         Quick 3-agent brainstorm skill
 |       |-- design-status/
-|           |-- SKILL.md                        (136 lines)   Progress tracking skill
-|-- CLAUDE.md                                    (41 lines)   Plugin development guidelines
+|           |-- SKILL.md                         Progress tracking skill
+|-- examples/
+|   |-- dashboard-before.html                    Sample motorcycle dashboard (test file)
+|   |-- sample-progress.md                       Example completed progress file
+|-- CLAUDE.md                                    Plugin development guidelines
 |-- CHANGELOG.md                                 (34 lines)   Version history
 |-- LICENSE                                      (21 lines)   MIT License
 |-- README.md                                                 This file
@@ -198,6 +210,17 @@ All agents are research-only -- they analyze and output findings with exact code
 - **No other plugins required** -- all agent prompts are fully self-contained with their own evaluation criteria, checklists, and output formats.
 - **Complementary**: [Impeccable](https://impeccable.style) -- provides individual slash commands for design concerns (critique, audit, animate, etc.). Compound Design Loop orchestrates the full pipeline. They are independent tools that work well together.
 - **Optional**: [Ralph Loop](https://github.com/nichochar/ralph-loop) -- persistent iteration loop for running multiple design passes across a session.
+
+## Examples
+
+The `examples/` directory contains a sample before-file and a completed progress file:
+
+- **[dashboard-before.html](examples/dashboard-before.html)** -- a motorcycle ride dashboard with common design issues (small tap targets, off-grid spacing, missing accessibility, no animations). Run the loop on it:
+  ```bash
+  /compound-design-loop:design-loop examples/dashboard-before.html --domain=motorcycle
+  ```
+
+- **[sample-progress.md](examples/sample-progress.md)** -- what a completed progress file looks like after a full 4-iteration run. Shows 23 fixes across 8 categories with the synthesis categorization in action.
 
 ## Troubleshooting
 

@@ -12,7 +12,7 @@
     {
       "name": "compound-design-loop",
       "description": "Build fast, then refine through specialized lenses. Spawns 8 parallel specialist agents across 4 structured iterations (DIAGNOSE, FOUNDATIONS, ENHANCE, SHIP) to review and auto-fix any UI file.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "license": "MIT",
       "author": {
         "name": "Andrej Kanuch",

@@ -2,7 +2,7 @@
 name: design-loop
 description: Run the Compound Design Loop — orchestrates 8 specialist agents across 4 iterations to take any UI from functional to production-grade. Covers critique, audit, typography, layout, copy, animation, hardening, color, accessibility, and polish. Use when a UI screen needs comprehensive design refinement.
 user-invokable: true
-argument-hint: "<file-path> [--domain=motorcycle|fitness|finance|ecommerce|medical] [--dry-run]"
+argument-hint: "<file-path|directory> [--domain=motorcycle|fitness|finance|ecommerce|medical] [--iterations=N] [--resume] [--no-apply] [--dry-run]"
 ---
 
 Orchestrate a comprehensive design review through 8 specialist agents across 4 iterations, transforming functional UI into production-grade design.
@@ -19,18 +19,37 @@ Before running the design loop, verify these conditions:
 
 Parse `$ARGUMENTS` and validate:
 
-1. **File path** (required, first positional argument):
-   - If missing: `"Error: file path required. Usage: /design-loop <file-path> [--domain=motorcycle] [--dry-run]"`
-   - If file does not exist: `"Error: file not found at [PATH]. Check the path and try again."`
-   - If file is not a supported type (html/jsx/tsx/vue/svelte): `"Error: unsupported file type '[EXT]'. Supported: .html, .jsx, .tsx, .vue, .svelte"`
-   - If file is binary: `"Error: [PATH] appears to be a binary file. This skill works on source files only."`
+1. **File path or directory** (required, first positional argument):
+   - If missing: `"Error: path required. Usage: /design-loop <file-or-dir> [--domain=motorcycle] [--iterations=2] [--resume] [--no-apply] [--dry-run]"`
+   - **If a directory**: glob for supported files (`*.html`, `*.jsx`, `*.tsx`, `*.vue`, `*.svelte`) in the directory (non-recursive). If none found: `"Error: no supported UI files found in [DIR]. Supported: .html, .jsx, .tsx, .vue, .svelte"`. If multiple found, list them and run the loop on each sequentially with shared DESIGN_CONTEXT (see [Multi-File Mode](#multi-file-mode)).
+   - **If a file**: validate it exists, is a supported type, and is not binary. Error messages:
+     - Not found: `"Error: file not found at [PATH]. Check the path and try again."`
+     - Unsupported: `"Error: unsupported file type '[EXT]'. Supported: .html, .jsx, .tsx, .vue, .svelte"`
+     - Binary: `"Error: [PATH] appears to be a binary file. This skill works on source files only."`
+   - **Multiple files**: space-separated paths are accepted. All must be valid supported files.
 
 2. **--domain flag** (optional, default: "default"):
    - Valid values: `motorcycle`, `fitness`, `finance`, `ecommerce`, `medical`, `default`
    - If invalid: `"Error: unknown domain '[VALUE]'. Valid domains: motorcycle, fitness, finance, ecommerce, medical, default"`
    - Domain descriptions and evaluation criteria are defined in [reference/domain-experts.md](reference/domain-experts.md)
 
-3. **--dry-run flag** (optional):
+3. **--iterations=N flag** (optional, default: 4):
+   - Valid values: `1`, `2`, `3`, `4`
+   - Controls how many iterations to run. Useful for quick feedback (`--iterations=1` runs DIAGNOSE only), large files, or context-constrained sessions.
+   - If invalid: `"Error: --iterations must be 1-4. Got: [VALUE]"`
+
+4. **--resume flag** (optional):
+   - If present, look for an existing `design-review-progress.md` in the same directory as the target file.
+   - If found: read the progress file, extract DESIGN_CONTEXT from frontmatter, detect completed iterations (checked `[x]` agents), and skip to the first incomplete iteration. Print: `"Resuming from Iteration N ([PHASE_NAME]). Iterations 1-M already complete."`
+   - If not found: `"Error: no progress file found. Run without --resume to start a fresh loop."`
+   - --resume and --dry-run are mutually exclusive.
+
+5. **--no-apply flag** (optional):
+   - If present, run all agents normally but do NOT apply any edits to the file during synthesis. Instead, output all findings as a structured report (same format as synthesis, but with code changes listed rather than applied).
+   - The progress file is still created and updated, with status `review` instead of `in-progress`.
+   - Useful for reviewing proposed changes before committing to auto-apply.
+
+6. **--dry-run flag** (optional):
    - If present, run context gathering and then output what would happen (detected context, agents to spawn, iterations planned) without executing any agents. Then stop.
 
 ## Context Gathering (MANDATORY)
@@ -75,6 +94,28 @@ Press enter to confirm, or type corrections (e.g., "theme=dark-only, scope=compo
 ```
 
 If `--dry-run` is present, output the gathered context, the 8 agents that would run, the 4 iterations planned, and stop execution.
+
+## Multi-File Mode
+
+When multiple files are provided (space-separated paths or a directory):
+
+1. **Shared context** — detect once from the first file. All files share the same DESIGN_CONTEXT.
+2. **Sequential execution** — run the full loop on each file one at a time. Do NOT run files in parallel.
+3. **Shared progress file** — one `design-review-progress.md` in the common parent directory, with each file as a top-level section.
+4. **Cross-file consistency** — after each file completes, note established design tokens, spacing grids, and type scales. Pass these as additional context to agents on subsequent files: `"Previous files established: [4px grid, 16px base, #3B82F6 accent]. Maintain consistency."`
+5. **File-size warning** — if any file exceeds 300 lines, warn before starting. If over 800, strongly recommend splitting.
+
+## Resume Protocol
+
+When `--resume` is present:
+
+1. Read `design-review-progress.md` in the target file's directory.
+2. Restore DESIGN_CONTEXT from YAML frontmatter — do NOT re-run context gathering.
+3. Count checked `[x]` agents to detect completion: agents 1-2 = Iteration 1, agents 3-4 = Iteration 2, agents 5-6 = Iteration 3, agents 7-8 = Iteration 4.
+4. Skip completed iterations. Print: `"Resuming: Iterations 1-N complete. Starting Iteration N+1: [PHASE_NAME]..."`
+5. Agents read the current (already-improved) file state.
+6. Continue normally — run remaining iterations, append to the existing progress file.
+7. If all complete: `"Loop already finished. Delete design-review-progress.md to start fresh."`
 
 ## Progress File Creation
 
@@ -478,18 +519,20 @@ Handle failures gracefully without retrying in the same iteration:
 
 ## Completion
 
-When all 4 iterations are complete (or as many as could be completed before failure):
+When all iterations are complete (all 4 by default, or `--iterations=N` if specified, or as many as could complete before failure):
 
 1. **Update the progress file**:
-   - Set frontmatter `status:` to `complete` (or `partial` if iterations were skipped).
+   - Set frontmatter `status:` to `complete`, `partial` (if iterations skipped due to failure), or `review` (if `--no-apply` was used).
    - Add a `completed:` timestamp.
    - Fill in the Summary section.
+   - Append the viral footer (see below).
 
 2. **Output a final summary** to the user:
-   - Number of agents that ran successfully (out of 8).
-   - Total fixes applied, grouped by category (accessibility, typography, layout, color, motion, resilience, polish, copy).
-   - Top 3-5 most impactful improvements made.
+   - Number of agents that ran successfully (out of 8, or fewer if `--iterations` limited the run).
+   - Total fixes applied (or "proposed" if `--no-apply`), grouped by category (accessibility, typography, layout, color, motion, resilience, polish, copy).
+   - Top 3-5 most impactful improvements.
    - Any skipped agents or deferred findings.
+   - If `--no-apply`: `"Run again without --no-apply to auto-apply these changes."`
 
 3. **If Ralph Loop is active**, output the completion promise:
    ```
@@ -497,3 +540,16 @@ When all 4 iterations are complete (or as many as could be completed before fail
    ```
 
 4. Close with: "Good design isn't one big decision — it's 15 small ones made through different lenses."
+
+## Progress File Footer
+
+Always append this footer to the bottom of `design-review-progress.md` on completion:
+
+```markdown
+---
+
+Reviewed by [Compound Design Loop](https://github.com/andrejkanuch/compound-design-loop) v1.1.0
+Install: `claude plugin install compound-design-loop`
+
+*Good design isn't one big decision — it's 15 small ones made through different lenses.*
+```
